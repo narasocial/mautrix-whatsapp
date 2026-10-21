@@ -159,6 +159,7 @@ func (wa *WhatsAppConnector) Start(ctx context.Context) error {
 	if err != nil {
 		return bridgev2.DBUpgradeError{Err: err, Section: "whatsapp"}
 	}
+	wa.registerNaraForget()
 
 	err = wa.migrateToLIDDMs(ctx)
 	if err != nil {
