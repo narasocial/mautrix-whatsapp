@@ -17,6 +17,8 @@
 package connector
 
 import (
+	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -101,5 +103,25 @@ func TestFillBridgeStateHistory(t *testing.T) {
 	}
 	if _, ok := state.Info["history_progress"]; ok {
 		t.Errorf("progress is only reported while history is under way, got %v", state.Info)
+	}
+}
+
+func TestWaitGroupOrTimeout(t *testing.T) {
+	var done sync.WaitGroup
+	done.Add(1)
+	go done.Done()
+	if !waitGroupOrTimeout(context.Background(), &done, time.Second) {
+		t.Error("a finished group should report finished")
+	}
+
+	var stuck sync.WaitGroup
+	stuck.Add(1)
+	if waitGroupOrTimeout(context.Background(), &stuck, 10*time.Millisecond) {
+		t.Error("a group that never finishes should time out")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if waitGroupOrTimeout(ctx, &stuck, time.Hour) {
+		t.Error("an ended context should stop the wait")
 	}
 }
