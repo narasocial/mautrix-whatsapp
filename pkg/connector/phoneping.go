@@ -37,14 +37,37 @@ func (wa *WhatsAppClient) FillBridgeState(state status.BridgeState) status.Bridg
 		state.Error = WAPhoneOffline
 		state.UserAction = status.UserActionOpenNative
 	}
-	rtu := wa.UserLogin.Metadata.(*waid.UserLoginMetadata).ReachoutTimelockUntil
-	if !rtu.IsZero() {
-		if state.Info == nil {
-			state.Info = make(map[string]any)
-		}
-		state.Info["reachout_timelock_until"] = rtu
+	meta := wa.UserLogin.Metadata.(*waid.UserLoginMetadata)
+	if state.Info == nil {
+		state.Info = make(map[string]any)
+	}
+	if !meta.ReachoutTimelockUntil.IsZero() {
+		state.Info["reachout_timelock_until"] = meta.ReachoutTimelockUntil
+	}
+	// "started" until every chat from the history sync after login has its portal and backfill,
+	// then "done".
+	if meta.HistorySyncPortalsNeedCreating {
+		state.Info["history"] = "started"
+		state.Info["history_progress"] = meta.HistorySyncFullProgress
+	} else {
+		state.Info["history"] = "done"
 	}
 	return state
+}
+
+// resendBridgeState sends the login's latest bridge state again, to report a change in what
+// FillBridgeState adds to it without waiting for the connection state to change.
+func (wa *WhatsAppClient) resendBridgeState() {
+	prev := wa.UserLogin.BridgeState.GetPrevUnsent()
+	if prev.StateEvent == "" {
+		return
+	}
+	wa.UserLogin.BridgeState.Send(status.BridgeState{
+		StateEvent: prev.StateEvent,
+		Error:      prev.Error,
+		Message:    prev.Message,
+		UserAction: prev.UserAction,
+	})
 }
 
 const PhoneDisconnectWarningTime = 12 * 24 * time.Hour // 12 days
