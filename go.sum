@@ -34,6 +34,8 @@ github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWE
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
 github.com/mattn/go-sqlite3 v1.14.52 h1:wVbm2Qnf4OXkqhBTSPuCRZDRnxfbVrrmiCEroVdog8U=
 github.com/mattn/go-sqlite3 v1.14.52/go.mod h1:6JTjA44L93a0QCyJef5YvlPoKXntQPjzWv5gtm9sB6w=
+github.com/narasocial/mautrix-go v0.32.1-0.20261021000255-2cbc91848f4c h1:+gRec7yFk+st5NgG4zgTAITaCNCYr0LKAq2npnqZ3Rg=
+github.com/narasocial/mautrix-go v0.32.1-0.20261021000255-2cbc91848f4c/go.mod h1:tZSwPzw+/0pa0dxGufkh0uJqM84BNxB6e2I0+S0UyjU=
 github.com/petermattis/goid v0.0.0-20260918085751-abfca077860b h1:OzNsuVdSWGwXvWKTtChx9ve89k4cFJ6NxYM4Aw4/f+E=
 github.com/petermattis/goid v0.0.0-20260918085751-abfca077860b/go.mod h1:pxMtw7cyUw6B2bRH0ZBANSPg+AoSud1I1iyJHI69jH4=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=
@@ -103,5 +105,3 @@ gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 maunium.net/go/mauflag v1.0.0 h1:YiaRc0tEI3toYtJMRIfjP+jklH45uDHtT80nUamyD4M=
 maunium.net/go/mauflag v1.0.0/go.mod h1:nLivPOpTpHnpzEh8jEdSL9UqO9+/KBJFmNRlwKfkPeA=
-maunium.net/go/mautrix v0.32.0 h1:xuAZzzyWce0pFkBhV/MCLFiJdVs2rFkY3Eep7hNng4I=
-maunium.net/go/mautrix v0.32.0/go.mod h1:tZSwPzw+/0pa0dxGufkh0uJqM84BNxB6e2I0+S0UyjU=
