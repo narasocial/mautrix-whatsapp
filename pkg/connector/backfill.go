@@ -144,6 +144,27 @@ func (wa *WhatsAppClient) saveFullSyncProgress(ctx context.Context, progress uin
 	if err := wa.UserLogin.Save(ctx); err != nil {
 		wa.UserLogin.Log.Err(err).Msg("Failed to save full history sync progress")
 	}
+	wa.resendBridgeState()
+}
+
+// How long history sync portal creation may take before the login reports history as done anyway.
+const historySyncResyncTimeout = 2 * time.Hour
+
+// waitGroupOrTimeout waits for wg, and reports whether it finished before the timeout or ctx ended.
+func waitGroupOrTimeout(ctx context.Context, wg *sync.WaitGroup, timeout time.Duration) bool {
+	finished := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(finished)
+	}()
+	select {
+	case <-finished:
+		return true
+	case <-time.After(timeout):
+		return false
+	case <-ctx.Done():
+		return false
+	}
 }
 
 func (wa *WhatsAppClient) saveWAHistorySyncNotification(ctx context.Context, evt *waE2E.HistorySyncNotification) {
@@ -540,7 +561,13 @@ func (wa *WhatsAppClient) createPortalsFromHistorySync(ctx context.Context) {
 	}
 	log.Info().Int("conversation_count", len(conversations)).Msg("Finished creating portals from history sync")
 	go func() {
-		wg.Wait()
+		// A chat whose room couldn't be made never finishes, so don't wait for it forever.
+		if !waitGroupOrTimeout(ctx, &wg, historySyncResyncTimeout) {
+			if ctx.Err() != nil {
+				return
+			}
+			log.Warn().Dur("timeout", historySyncResyncTimeout).Msg("Not all history sync chat resync events finished in time")
+		}
 		wa.UserLogin.Metadata.(*waid.UserLoginMetadata).HistorySyncPortalsNeedCreating = false
 		err = wa.UserLogin.Save(ctx)
 		if err != nil {
