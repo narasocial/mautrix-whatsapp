@@ -52,10 +52,27 @@ func (wa *WhatsAppClient) historySyncLoop(ctx context.Context) {
 	wa.UserLogin.Log.Debug().Msg("Starting history sync loops")
 	// Separate loop for creating portals to ensure it doesn't block processing new history sync payloads.
 	go func() {
+		// Fires when wait_for_full_sync runs out, if the dispatch timer found the full sync unfinished.
+		var fullSyncDeadline <-chan time.Time
 		for {
 			select {
 			case <-dispatchTimer.C:
 				timerPending.Store(false)
+				if wait := wa.fullSyncWait(time.Now()); wait > 0 {
+					wa.UserLogin.Log.Info().
+						Uint32("full_sync_progress", wa.UserLogin.Metadata.(*waid.UserLoginMetadata).HistorySyncFullProgress).
+						Dur("max_wait", wait).
+						Msg("Waiting for the full history sync to finish before creating portals")
+					fullSyncDeadline = time.After(wait)
+					continue
+				}
+				fullSyncDeadline = nil
+				wa.createPortalsFromHistorySync(ctx)
+			case <-fullSyncDeadline:
+				fullSyncDeadline = nil
+				wa.UserLogin.Log.Warn().
+					Uint32("full_sync_progress", wa.UserLogin.Metadata.(*waid.UserLoginMetadata).HistorySyncFullProgress).
+					Msg("Full history sync didn't finish in time, creating portals with what has arrived")
 				wa.createPortalsFromHistorySync(ctx)
 			case <-ctx.Done():
 				wa.UserLogin.Log.Debug().Msg("Stopping portal creation history sync loop")
@@ -100,6 +117,32 @@ func (wa *WhatsAppClient) historySyncLoop(ctx context.Context) {
 		if timerPending.Load() {
 			dispatchTimer.Reset(wa.Main.Config.HistorySync.DispatchWait)
 		}
+	}
+}
+
+// fullSyncWait returns how much longer portal creation should wait for the phone to finish
+// the full history sync it was asked for at login, or 0 if it shouldn't wait.
+func (wa *WhatsAppClient) fullSyncWait(now time.Time) time.Duration {
+	cfg := &wa.Main.Config.HistorySync
+	return fullSyncWait(wa.UserLogin.Metadata.(*waid.UserLoginMetadata), cfg.RequestFullSync, cfg.WaitForFullSync, now)
+}
+
+func fullSyncWait(meta *waid.UserLoginMetadata, requestFullSync bool, maxWait time.Duration, now time.Time) time.Duration {
+	if maxWait <= 0 || !requestFullSync || !meta.HistorySyncPortalsNeedCreating ||
+		meta.HistorySyncFullProgress >= 100 || meta.LoggedInAt.IsZero() {
+		return 0
+	}
+	return max(meta.LoggedInAt.Add(maxWait).Sub(now), 0)
+}
+
+func (wa *WhatsAppClient) saveFullSyncProgress(ctx context.Context, progress uint32) {
+	meta := wa.UserLogin.Metadata.(*waid.UserLoginMetadata)
+	if progress <= meta.HistorySyncFullProgress {
+		return
+	}
+	meta.HistorySyncFullProgress = progress
+	if err := wa.UserLogin.Save(ctx); err != nil {
+		wa.UserLogin.Log.Err(err).Msg("Failed to save full history sync progress")
 	}
 }
 
@@ -171,6 +214,9 @@ func (wa *WhatsAppClient) downloadAndSaveWAHistorySyncData(ctx context.Context, 
 	if err != nil {
 		log.Err(err).Msg("Failed to store history sync notification data")
 	} else {
+		if blob.GetSyncType() == waHistorySync.HistorySync_FULL {
+			wa.saveFullSyncProgress(ctx, max(evt.GetProgress(), blob.GetProgress()))
+		}
 		resetTimer = blob.GetSyncType() == waHistorySync.HistorySync_INITIAL_BOOTSTRAP ||
 			blob.GetSyncType() == waHistorySync.HistorySync_RECENT ||
 			blob.GetSyncType() == waHistorySync.HistorySync_FULL
@@ -500,6 +546,8 @@ func (wa *WhatsAppClient) createPortalsFromHistorySync(ctx context.Context) {
 			log.Err(err).Msg("Failed to save user login history sync portals created flag")
 		}
 		log.Info().Msg("Finished processing all history sync chat resync events")
+		// Tell the status endpoint history is done (FillBridgeState adds it to the info).
+		wa.resendBridgeState()
 	}()
 }
 

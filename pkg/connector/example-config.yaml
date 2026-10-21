@@ -104,6 +104,12 @@ history_sync:
     # If this is too low, the backfill may happen with incomplete history
     # and backfill less messages than what is configured in the backfill section.
     dispatch_wait: 1m
+    # How long to wait after login for the phone to finish the full history sync before creating portals,
+    # when request_full_sync is enabled. Portals are created dispatch_wait after the payload that completes
+    # the full sync, or when this runs out. History that arrives after a chat's portal exists can't be
+    # backfilled into it without batch sending, so this keeps a slow phone's later payloads from being lost.
+    # 0 doesn't wait.
+    wait_for_full_sync: 0
     # Configuration parameters that are sent to the phone along with the request full sync flag.
     # By default, (when the values are null or 0), the config isn't sent at all.
     full_sync_config:

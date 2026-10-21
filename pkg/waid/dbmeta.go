@@ -43,6 +43,7 @@ type UserLoginMetadata struct {
 	WASAResynced              bool                               `json:"wasa_resynced,omitzero"`
 
 	HistorySyncPortalsNeedCreating bool      `json:"history_sync_portals_need_creating,omitzero"`
+	HistorySyncFullProgress        uint32    `json:"history_sync_full_progress,omitzero"` // the highest of the full sync's payloads since login, 0-100
 	ReachoutTimelockUntil          time.Time `json:"reachout_timelock_until,omitzero"`
 
 	Blocklist *types.Blocklist `json:"blocklist,omitempty"`
