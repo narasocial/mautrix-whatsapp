@@ -866,6 +866,7 @@ func (wa *WhatsAppClient) handleOnDemandHistorySync(ctx context.Context, blob *w
 func (wa *WhatsAppClient) convertHistorySyncMessage(
 	ctx context.Context, cli *whatsmeow.Client, portal *bridgev2.Portal, info *types.MessageInfo, msg, rawMsg *waE2E.Message, isViewOnce bool, reactions []*waWeb.Reaction,
 ) (*bridgev2.BackfillMessage, *wadb.MediaRequest) {
+	hdOf := hdParentID(msg)
 	// New messages turn these into edits, but in backfill we only have the last version,
 	// so no need to do the edit thing. Instead, just unwrap the message.
 	if msg.GetAssociatedChildMessage().GetMessage() != nil {
@@ -883,6 +884,7 @@ func (wa *WhatsAppClient) convertHistorySyncMessage(
 		StreamOrder:      info.Timestamp.Unix(),
 		Reactions:        make([]*bridgev2.BackfillReaction, 0, len(reactions)),
 	}
+	setNaraInfo(wrapped.ConvertedMessage, wa.naraInfo(ctx, portal, cli, naraMessageFrom(info, true, "", hdOf)))
 	mediaReq := wa.processFailedMedia(ctx, portal.PortalKey, wrapped.ID, wrapped.ConvertedMessage, true)
 	for _, reaction := range reactions {
 		var sender types.JID

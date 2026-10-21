@@ -361,9 +361,11 @@ func (wa *WhatsAppClient) handleWAMessage(ctx context.Context, evt *events.Messa
 	}
 
 	dontRenderEdited := false
+	var hdOf types.MessageID
 	messageAssoc := evt.Message.GetMessageContextInfo().GetMessageAssociation()
 	if assocType := messageAssoc.GetAssociationType(); assocType == waE2E.MessageAssociation_HD_IMAGE_DUAL_UPLOAD || assocType == waE2E.MessageAssociation_HD_VIDEO_DUAL_UPLOAD {
 		parentKey := messageAssoc.GetParentMessageKey()
+		hdOf = parentKey.GetID()
 		protocolMsg, shouldHideEdit := makeHDMediaReplacementEdit(evt.Message, parentKey)
 		dontRenderEdited = shouldHideEdit
 		wa.UserLogin.Log.Debug().
@@ -395,6 +397,7 @@ func (wa *WhatsAppClient) handleWAMessage(ctx context.Context, evt *events.Messa
 
 		parsedMessageType: parsedMessageType,
 		dontRenderEdited:  dontRenderEdited,
+		hdOf:              hdOf,
 	}
 	if evt.UnavailableRequestID != "" {
 		wa.UserLogin.Log.Debug().

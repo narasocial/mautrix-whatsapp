@@ -107,6 +107,8 @@ type WAMessageEvent struct {
 	isUndecryptableUpsertSubEvent bool
 	dontRenderEdited              bool
 	postHandle                    func()
+	// For an HD photo or video's second message, which arrives as an edit, the first message's ID.
+	hdOf types.MessageID
 }
 
 var (
@@ -249,9 +251,15 @@ func (evt *WAMessageEvent) ConvertEdit(ctx context.Context, portal *bridgev2.Por
 		}
 		editPart.TopLevelExtra["com.beeper.dont_render_edited"] = true
 	}
-	return &bridgev2.ConvertedEdit{
+	edit := &bridgev2.ConvertedEdit{
 		ModifiedParts: []*bridgev2.ConvertedEditPart{editPart},
-	}, nil
+	}
+	editTarget := evt.Message.GetProtocolMessage().GetKey().GetID()
+	if evt.isUndecryptableUpsertSubEvent {
+		editTarget = evt.Info.ID
+	}
+	setNaraEditInfo(edit, evt.wa.naraInfo(ctx, portal, evt.wa.Client, naraMessageFrom(&evt.Info, false, editTarget, evt.hdOf)))
+	return edit, nil
 }
 
 func (evt *WAMessageEvent) GetTargetMessage() networkid.MessageID {
@@ -339,6 +347,7 @@ func (evt *WAMessageEvent) ConvertMessage(ctx context.Context, portal *bridgev2.
 		ctx, portal, evt.wa.Client, intent, evt.Message, evt.MsgEvent.RawMessage, &evt.Info, evt.isViewOnce(), false, nil,
 	)
 	evt.addMuseProfile(portal, converted)
+	setNaraInfo(converted, evt.wa.naraInfo(ctx, portal, evt.wa.Client, naraMessageFrom(&evt.Info, false, "", "")))
 	if isFailedMedia(converted) {
 		evt.postHandle = func() {
 			evt.wa.processFailedMedia(ctx, portal.PortalKey, evt.GetID(), converted, false)
@@ -425,7 +434,7 @@ func (evt *WAUndecryptableMessage) ConvertMessage(ctx context.Context, portal *b
 		}
 	}
 	// TODO thread root for comments
-	return &bridgev2.ConvertedMessage{
+	converted := &bridgev2.ConvertedMessage{
 		Parts: []*bridgev2.ConvertedMessagePart{{
 			Type:    event.EventMessage,
 			Content: content,
@@ -437,7 +446,9 @@ func (evt *WAUndecryptableMessage) ConvertMessage(ctx context.Context, portal *b
 			},
 		}},
 		Disappear: portal.Disappear,
-	}, nil
+	}
+	setNaraInfo(converted, evt.wa.naraInfo(ctx, portal, evt.wa.Client, naraMessageFrom(&evt.Info, false, "", "")))
+	return converted, nil
 }
 
 func (evt *WAUndecryptableMessage) GetStreamOrder() int64 {
@@ -507,6 +518,20 @@ func (evt *WAMediaRetry) makeErrorEdit(part *database.Message, meta *msgconv.Pre
 }
 
 func (evt *WAMediaRetry) ConvertEdit(ctx context.Context, portal *bridgev2.Portal, intent bridgev2.MatrixAPI, existing []*database.Message) (*bridgev2.ConvertedEdit, error) {
+	edit, err := evt.convertEdit(ctx, portal, intent, existing)
+	if edit != nil {
+		setNaraEditInfo(edit, evt.wa.naraInfo(ctx, portal, evt.wa.Client, naraMessage{
+			ID:        evt.MessageID,
+			Sender:    evt.getRealSender(),
+			SenderAlt: evt.senderLID,
+			FromMe:    evt.FromMe,
+			TargetID:  evt.MessageID,
+		}))
+	}
+	return edit, err
+}
+
+func (evt *WAMediaRetry) convertEdit(ctx context.Context, portal *bridgev2.Portal, intent bridgev2.MatrixAPI, existing []*database.Message) (*bridgev2.ConvertedEdit, error) {
 	meta := existing[0].Metadata.(*waid.MessageMetadata)
 	if meta.DirectMediaMeta != nil {
 		evt.wa.receiveDirectMediaRetry(ctx, existing[0], evt.MediaRetry)
