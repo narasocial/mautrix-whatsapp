@@ -161,6 +161,7 @@ func (wa *WhatsAppConnector) Start(ctx context.Context) error {
 	}
 	wa.registerNaraForget()
 	wa.registerNaraDevices()
+	go wa.naraPruneLoop()
 
 	err = wa.migrateToLIDDMs(ctx)
 	if err != nil {
