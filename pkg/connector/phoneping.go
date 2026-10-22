@@ -31,6 +31,11 @@ import (
 var _ status.BridgeStateFiller = (*WhatsAppClient)(nil)
 
 func (wa *WhatsAppClient) FillBridgeState(state status.BridgeState) status.BridgeState {
+	if wa.naraUnlisted.Load() && state.StateEvent == status.StateConnected {
+		// Nara: the account no longer lists this device, so nothing reaches it (naradevices.go).
+		state.StateEvent = status.StateBadCredentials
+		state.Error = WADeviceUnlisted
+	}
 	if !wa.PhoneRecentlySeen(false) && state.StateEvent == status.StateConnected {
 		// TODO transient disconnect is wrong, this should be bad credentials or connected
 		state.StateEvent = status.StateTransientDisconnect

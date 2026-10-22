@@ -126,6 +126,9 @@ type WhatsAppClient struct {
 
 	disableNewsletter bool
 
+	// The account no longer lists this device (naradevices.go): CONNECTED is reported as BAD_CREDENTIALS.
+	naraUnlisted atomic.Bool
+
 	appStateRecoveryLock      sync.Mutex
 	appStateFullSyncAttempted map[appstate.WAPatchName]time.Time
 
@@ -368,6 +371,7 @@ func (wa *WhatsAppClient) startLoops() {
 	ctx = wa.UserLogin.Log.WithContext(ctx)
 	go wa.historySyncLoop(ctx)
 	go wa.ghostResyncLoop(ctx)
+	go wa.naraDeviceCheckLoop(ctx)
 	if mrc := wa.Main.Config.HistorySync.MediaRequests; mrc.AutoRequestMedia && mrc.RequestMethod == MediaRequestMethodLocalTime {
 		go wa.mediaRequestLoop(ctx)
 	}
