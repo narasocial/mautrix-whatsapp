@@ -220,7 +220,7 @@ func (wa *WhatsAppConnector) onFirstClientConnect() {
 	if err != nil {
 		wa.Bridge.Log.Err(err).Msg("Failed to get latest WhatsApp web version number")
 	} else {
-		wa.Bridge.Log.Debug().
+		wa.Bridge.Log.Info().
 			Stringer("hardcoded_version", hardcodedWAVersion).
 			Stringer("latest_version", *ver).
 			Msg("Got latest WhatsApp web version number")
