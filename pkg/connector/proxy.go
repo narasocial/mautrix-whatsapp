@@ -48,6 +48,22 @@ func (wa *WhatsAppConnector) getProxy(reason string) (string, error) {
 	return respData.ProxyURL, nil
 }
 
+// versionProxy is how the latest-version check's request goes out: through the
+// configured proxy, as the client's own connections do, so a bridge whose only
+// way out is that proxy (Nara's chat enclave, which has no DNS) still learns
+// the latest WhatsApp web version. Nil, with none, goes direct as before.
+func (wa *WhatsAppConnector) versionProxy() func(*http.Request) (*url.URL, error) {
+	if wa.Config.Proxy == "" || wa.Config.ProxyOnlyLogin {
+		return nil
+	}
+	parsed, err := url.Parse(wa.Config.Proxy)
+	if err != nil {
+		wa.Bridge.Log.Err(err).Msg("Failed to parse proxy address for the version check")
+		return nil
+	}
+	return http.ProxyURL(parsed)
+}
+
 func (wa *WhatsAppConnector) updateProxy(ctx context.Context, client *whatsmeow.Client, isLogin bool) error {
 	if wa.Config.ProxyOnlyLogin && !isLogin {
 		return nil

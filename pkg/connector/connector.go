@@ -209,6 +209,7 @@ func (wa *WhatsAppConnector) onFirstClientConnect() {
 	ctx := wa.Bridge.BackgroundCtx
 	ver, err := whatsmeow.GetLatestVersion(ctx, &http.Client{
 		Transport: &http.Transport{
+			Proxy:                 wa.versionProxy(),
 			DialContext:           (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
 			TLSHandshakeTimeout:   5 * time.Second,
 			ResponseHeaderTimeout: 5 * time.Second,
