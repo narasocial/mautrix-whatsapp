@@ -77,6 +77,33 @@ func TestRedactingWriter(t *testing.T) {
 	}
 }
 
+func TestRedactingWriterNodes(t *testing.T) {
+	var out bytes.Buffer
+	log := zerolog.New(newRedactingWriter(&out))
+	log.Warn().Msg(`Node handling took 10.644031934s for <message addressing_mode="lid" from="120363000000000001@g.us" id="3A2B4C5D6E7F" notify="Sam Rivera" participant="200000000000002@lid" t="1761700000" type="text"><enc type="skmsg" v="2"><!-- 120 bytes --></enc></message>`)
+	log.Warn().Msg(`Closing handler queue loop in the middle of handling <notification from="120363000000000001@g.us" notify="Sam Rivera" type="w:gp2"><subject subject="Climbing"/><description id="AB12"><body>Saturday at the wall</body></description></notification>`)
+	_, _ = newRedactingWriter(&out).Write([]byte(`panic: <presence from="447700900123@s.whatsapp.net" name="Sam Rivera"/>` + "\n"))
+
+	var lines string
+	for _, line := range strings.SplitAfter(out.String(), "\n") {
+		var fields map[string]any
+		if json.Unmarshal([]byte(line), &fields) == nil {
+			line = fields["message"].(string) + "\n"
+		}
+		lines += line
+	}
+	for _, private := range []string{"Sam Rivera", "Climbing", "Saturday at the wall", "120363000000000001", "200000000000002", "447700900123"} {
+		if strings.Contains(lines, private) {
+			t.Errorf("%q is in the log: %s", private, lines)
+		}
+	}
+	for _, kept := range []string{`notify="<redacted>"`, `type="text"`, `id="3A2B4C5D6E7F"`, "took 10.644031934s", `<!-- 120 bytes -->`, `<body><redacted></body>`, `name="<redacted>"`} {
+		if !strings.Contains(lines, kept) {
+			t.Errorf("%q should be in the log: %s", kept, lines)
+		}
+	}
+}
+
 func TestRedactingWriterNotJSON(t *testing.T) {
 	var out bytes.Buffer
 	_, _ = newRedactingWriter(&out).Write([]byte("panic: login 15551234567 at 12.3456789s\n"))

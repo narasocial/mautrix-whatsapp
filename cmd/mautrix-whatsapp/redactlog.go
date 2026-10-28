@@ -48,6 +48,14 @@ func init() {
 // Digits after a '.' are the fraction of a time or a version, not a number of anyone's.
 var longDigits = regexp.MustCompile(`(^|[^0-9.])\+?([0-9]{7,})`)
 
+// whatsmeow logs some of WhatsApp's protocol nodes whole, inside a line's message ("Node handling
+// took 10s for <message … notify="…">"), and a node carries its people in attributes and text: the
+// sender's own name in notify, a group's subject, a body's text. Those go too.
+var (
+	markupAttribute = regexp.MustCompile(`([A-Za-z_:-]+)="([^"]*)"`)
+	markupText      = regexp.MustCompile(`<([A-Za-z_:-]+)((?:\s[^<>]*)?)>([^<]+)</([A-Za-z_:-]+)>`)
+)
+
 type redactingWriter struct {
 	out io.Writer
 	key []byte
@@ -64,7 +72,7 @@ func (w *redactingWriter) Write(p []byte) (int, error) {
 	dec := json.NewDecoder(bytes.NewReader(p))
 	dec.UseNumber()
 	if dec.Decode(&fields) != nil {
-		_, err := w.out.Write(w.redactDigits(p))
+		_, err := w.out.Write(w.redactDigits([]byte(redactMarkup(string(p)))))
 		return len(p), err
 	}
 	out, err := json.Marshal(w.redact("", fields))
@@ -81,7 +89,7 @@ func (w *redactingWriter) redact(key string, value any) any {
 		if v != "" && isPrivateField(key) {
 			return "<redacted>"
 		}
-		return string(w.redactDigits([]byte(v)))
+		return string(w.redactDigits([]byte(redactMarkup(v))))
 	case map[string]any:
 		for k, item := range v {
 			v[k] = w.redact(k, item)
@@ -99,7 +107,28 @@ func (w *redactingWriter) redact(key string, value any) any {
 
 func isPrivateField(key string) bool {
 	key = strings.ToLower(key)
-	return strings.Contains(key, "name") || key == "body" || key == "text" || key == "caption" || key == "content"
+	return strings.Contains(key, "name") || key == "body" || key == "text" || key == "caption" || key == "content" ||
+		key == "notify" || key == "subject"
+}
+
+func redactMarkup(s string) string {
+	if !strings.Contains(s, "<") {
+		return s
+	}
+	s = markupAttribute.ReplaceAllStringFunc(s, func(match string) string {
+		groups := markupAttribute.FindStringSubmatch(match)
+		if groups[2] == "" || !isPrivateField(groups[1]) {
+			return match
+		}
+		return groups[1] + `="<redacted>"`
+	})
+	return markupText.ReplaceAllStringFunc(s, func(match string) string {
+		groups := markupText.FindStringSubmatch(match)
+		if groups[1] != groups[4] || !isPrivateField(groups[1]) {
+			return match
+		}
+		return "<" + groups[1] + groups[2] + "><redacted></" + groups[1] + ">"
+	})
 }
 
 func (w *redactingWriter) redactDigits(p []byte) []byte {
