@@ -36,9 +36,14 @@ import (
 // (https://nara.contact), whose appservice reads the bridge's events off the homeserver.
 // It says whose WhatsApp an event came through, which chat it's in, who sent it and WhatsApp's own
 // message ID, none of which a Matrix event otherwise carries. The receiver's own reactions carry one
-// too (reaction: true), so Nara can count one as their answer to the message it's on; other
+// too (reaction: true, under NaraReactionKey), so Nara can count one as their answer to the message it's on; other
 // reactions and redactions have none: Nara finds them by the event they relate to.
 const NaraContentKey = "social.nara"
+
+// NaraReactionKey is the content key of the block on the receiver's own reactions: the same block,
+// with reaction: true, under a key of its own, so a Nara server from before it read reactions drops
+// one (as an event with no block) rather than taking it for a message of theirs.
+const NaraReactionKey = "social.nara.reaction"
 
 // NaraMessageInfo is the social.nara block, version 1. Phone numbers are E.164 with a leading +.
 type NaraMessageInfo struct {

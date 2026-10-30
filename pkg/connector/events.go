@@ -288,7 +288,7 @@ func (evt *WAMessageEvent) GetReactionExtraContent() map[string]any {
 	if !evt.Info.IsFromMe || reaction == nil {
 		return nil
 	}
-	return map[string]any{NaraContentKey: naraReactionInfo(
+	return map[string]any{NaraReactionKey: naraReactionInfo(
 		evt.wa.UserLogin.ID, evt.Info.Chat, evt.Info.ID, reaction.GetKey().GetID(), evt.wa.GetLID(), evt.wa.JID, false,
 	)}
 }

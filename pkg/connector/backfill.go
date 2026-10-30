@@ -927,7 +927,7 @@ func (wa *WhatsAppClient) convertHistorySyncMessage(
 		}
 		var extra map[string]any
 		if reaction.GetKey().GetFromMe() {
-			extra = map[string]any{NaraContentKey: naraReactionInfo(wa.UserLogin.ID, info.Chat, reaction.GetKey().GetID(), info.ID, wa.GetLID(), wa.JID, true)}
+			extra = map[string]any{NaraReactionKey: naraReactionInfo(wa.UserLogin.ID, info.Chat, reaction.GetKey().GetID(), info.ID, wa.GetLID(), wa.JID, true)}
 		}
 		wrapped.Reactions = append(wrapped.Reactions, &bridgev2.BackfillReaction{
 			TargetPart:   ptr.Ptr(networkid.PartID("")),
