@@ -925,11 +925,16 @@ func (wa *WhatsAppClient) convertHistorySyncMessage(
 		if sender.IsEmpty() {
 			continue
 		}
+		var extra map[string]any
+		if reaction.GetKey().GetFromMe() {
+			extra = map[string]any{NaraContentKey: naraReactionInfo(wa.UserLogin.ID, info.Chat, reaction.GetKey().GetID(), info.ID, wa.GetLID(), wa.JID, true)}
+		}
 		wrapped.Reactions = append(wrapped.Reactions, &bridgev2.BackfillReaction{
-			TargetPart: ptr.Ptr(networkid.PartID("")),
-			Timestamp:  time.UnixMilli(reaction.GetSenderTimestampMS()),
-			Sender:     wa.makeEventSender(ctx, sender),
-			Emoji:      reaction.GetText(),
+			TargetPart:   ptr.Ptr(networkid.PartID("")),
+			Timestamp:    time.UnixMilli(reaction.GetSenderTimestampMS()),
+			Sender:       wa.makeEventSender(ctx, sender),
+			Emoji:        reaction.GetText(),
+			ExtraContent: extra,
 		})
 	}
 	return wrapped, mediaReq

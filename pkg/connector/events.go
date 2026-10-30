@@ -119,6 +119,7 @@ var (
 	_ bridgev2.RemoteEventThatMayCreatePortal = (*WAMessageEvent)(nil)
 	_ bridgev2.RemoteEventWithStreamOrder     = (*WAMessageEvent)(nil)
 	_ bridgev2.RemoteReaction                 = (*WAMessageEvent)(nil)
+	_ bridgev2.RemoteReactionWithExtraContent = (*WAMessageEvent)(nil)
 	_ bridgev2.RemoteReactionRemove           = (*WAMessageEvent)(nil)
 	_ bridgev2.RemoteReactionWithMeta         = (*WAMessageEvent)(nil)
 	_ bridgev2.RemoteEdit                     = (*WAMessageEvent)(nil)
@@ -279,6 +280,17 @@ func (evt *WAMessageEvent) GetTargetMessage() networkid.MessageID {
 
 func (evt *WAMessageEvent) GetReactionEmoji() (string, networkid.EmojiID) {
 	return evt.Message.GetReactionMessage().GetText(), ""
+}
+
+// GetReactionExtraContent gives the receiver's own reaction the social.nara block, for Nara.
+func (evt *WAMessageEvent) GetReactionExtraContent() map[string]any {
+	reaction := evt.Message.GetReactionMessage()
+	if !evt.Info.IsFromMe || reaction == nil {
+		return nil
+	}
+	return map[string]any{NaraContentKey: naraReactionInfo(
+		evt.wa.UserLogin.ID, evt.Info.Chat, evt.Info.ID, reaction.GetKey().GetID(), evt.wa.GetLID(), evt.wa.JID, false,
+	)}
 }
 
 func (evt *WAMessageEvent) GetReactionDBMetadata() any {

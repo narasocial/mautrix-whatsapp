@@ -250,3 +250,22 @@ func TestHDParentID(t *testing.T) {
 		})
 	}
 }
+
+func TestNaraReactionInfo(t *testing.T) {
+	chat := types.NewJID("200000000000002", types.HiddenUserServer)
+	ownLID := types.NewJID("100000000000001", types.HiddenUserServer)
+	ownPN := types.NewJID("15550000001", types.DefaultUserServer)
+	info := naraReactionInfo("15550000001", chat, "3EB0REACT", "3EB0TARGET", ownLID, ownPN, false)
+	raw, err := json.Marshal(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"v":1,"receiver":"15550000001","chat":"200000000000002@lid","direct":true,"message_id":"3EB0REACT","target_id":"3EB0TARGET","sender":"100000000000001@lid","from_me":true,"history":false,"reaction":true}`
+	if string(raw) != want {
+		t.Fatalf("got %s, want %s", raw, want)
+	}
+	// No LID known yet: their number stands in.
+	if got := naraReactionInfo("15550000001", chat, "a", "b", types.EmptyJID, ownPN, true).Sender; got != "15550000001@s.whatsapp.net" {
+		t.Fatalf("sender %s", got)
+	}
+}

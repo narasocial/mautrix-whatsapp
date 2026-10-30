@@ -35,8 +35,9 @@ import (
 // NaraContentKey is the content key of the block every message and edit event carries for Nara
 // (https://nara.contact), whose appservice reads the bridge's events off the homeserver.
 // It says whose WhatsApp an event came through, which chat it's in, who sent it and WhatsApp's own
-// message ID, none of which a Matrix event otherwise carries. Reactions and redactions have none:
-// Nara finds them by the event they relate to.
+// message ID, none of which a Matrix event otherwise carries. The receiver's own reactions carry one
+// too (reaction: true), so Nara can count one as their answer to the message it's on; other
+// reactions and redactions have none: Nara finds them by the event they relate to.
 const NaraContentKey = "social.nara"
 
 // NaraMessageInfo is the social.nara block, version 1. Phone numbers are E.164 with a leading +.
@@ -66,6 +67,29 @@ type NaraMessageInfo struct {
 	History bool `json:"history"`
 	// In the second message of a photo or video sent in HD, the first message's ID.
 	HDOf string `json:"hd_of,omitempty"`
+	// The receiver's own reaction, on the message TargetID: no message of its own.
+	Reaction bool `json:"reaction,omitempty"`
+}
+
+// naraReactionInfo builds the block for the receiver's own reaction (id) on a message (target) in
+// chat, as WhatsApp gives the chat. No names: Nara needs only whose it is and which message it's on.
+func naraReactionInfo(receiver networkid.UserLoginID, chat types.JID, id, target types.MessageID, ownLID, ownPN types.JID, history bool) *NaraMessageInfo {
+	own := ownLID
+	if own.IsEmpty() {
+		own = ownPN
+	}
+	return &NaraMessageInfo{
+		V:         1,
+		Receiver:  string(receiver),
+		Chat:      chat.ToNonAD().String(),
+		Direct:    isNaraDirect(chat),
+		MessageID: string(id),
+		TargetID:  string(target),
+		Sender:    own.ToNonAD().String(),
+		FromMe:    true,
+		History:   history,
+		Reaction:  true,
+	}
 }
 
 // naraMessage is what a NaraMessageInfo is built from.
